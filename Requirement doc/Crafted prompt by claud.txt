@@ -1,0 +1,294 @@
+# MAKS BG Remover — Full-Stack Web App Build Prompt
+
+## Project Overview
+Build a production-ready, single-page web application called **MAKS BG Remover** — an AI-powered background removal tool. The app accepts an image from the user, sends it to an n8n webhook (which runs a ClipDrop background-removal workflow), receives the processed image, and lets the user download it in their desired format and size. The design must be stunning, modern, and professional with zero placeholder content.
+
+---
+
+## Tech Stack
+- **Frontend:** Vanilla HTML5 + CSS3 + ES2022 JavaScript (no frameworks required; if a framework is used, prefer React or Next.js)
+- **Styling:** Custom CSS with CSS variables for theming; no Tailwind required but acceptable
+- **HTTP:** Native `fetch` API with `AbortController` for timeouts
+- **Image processing:** Browser Canvas API for client-side resize, crop, and format conversion
+- **Security:** Input validation, file-type whitelist, size limits, sanitised error messages, no secrets in client code
+
+---
+
+## Section 1 — Hero
+
+Design a full-viewport hero section with:
+
+### Visual Design
+- **Animated gradient background** using `linear-gradient` cycling through deep navy → rich purple → dark teal using a CSS `@keyframes` animation (15 s, infinite, smooth)
+- **Three large blurred radial-gradient "orbs"** (purple, cyan, rose) that float with subtle `translate + scale` CSS keyframe animations — each on a different duration and delay so they feel organic
+- A **subtle grid overlay** (`background-image` of 1 px lines, ~60 px spacing, 5 % opacity) layered on top of the gradient
+- **20–25 floating particle dots** generated in JavaScript on page load, rising from bottom to top with randomised speed, size (2–5 px), and colour (purple/cyan/indigo palette), opacity-faded at start/end
+
+### Content
+- Small pill-shaped **badge** above the title: `✦ AI-Powered · ClipDrop Engine`
+- **Main heading:** `MAKS` (white) followed by `BGREMOVER` styled with a multi-stop gradient text (`#a855f7 → #06b6d4 → #34d399`) using `background-clip: text`, with a CSS shimmer animation that scrolls the gradient horizontally every 4 s
+- **Subtitle:** *"Remove image backgrounds instantly with professional-grade AI. Clean edges, precise cutouts — upload, paste, or drag your photo and download in seconds."*
+- **CTA button:** `🚀 Remove Background Now` — pill-shaped, gradient fill (`#7c3aed → #06b6d4`), hover lifts with `translateY(-3px)` and deeper box-shadow; scrolls to the upload section on click
+- **Feature pills row** below the button: `✦ Instant AI Removal` · `⬇ PNG · JPG · WEBP` · `↔ Resize & Orient` · `✂ Precise Edges`
+- A **scroll indicator** at the bottom centre with an animated downward pulse
+
+---
+
+## Section 2 — Upload Zone
+
+### Layout
+Centred card, max-width 960 px, with generous padding and a rounded border (2 px dashed, purple-tinted at 40 % opacity) that glows brighter on hover and drag-over.
+
+### Three Input Methods — all must work simultaneously
+
+#### A. Click-to-Browse
+- The entire upload zone must be a `<label for="fileInput">` element
+- The `<input type="file" id="fileInput">` is `position: absolute; width: 1px; height: 1px; opacity: 0` — visually hidden but fully accessible and native-click-triggerable
+- **Do NOT use `fileInput.click()` in JavaScript** — this is blocked in sandboxed iframes; the label association is the only reliable method
+- A styled `"Choose Image"` span inside the label acts as the visual button
+
+#### B. Drag & Drop
+- Attach `dragover`, `dragleave`, and `drop` listeners to the label/zone element
+- On `dragover`: add `.drag` class (brightens border, lightens background, slight scale)
+- On `drop`: extract `event.dataTransfer.files[0]`, validate, then call `processFile(file)`
+- On `dragleave`: remove `.drag` class
+
+#### C. Clipboard Paste (Ctrl+V / Cmd+V)
+- Attach a global `paste` event listener to `document`
+- Extract image from `event.clipboardData.items`
+- Filter items where `item.type.startsWith('image/')`
+- Call `item.getAsFile()` then pass to `processFile(file)`
+- Show a brief "📋 Image pasted!" toast notification (bottom-right, 2 s, then fade out)
+
+### Accepted Formats
+`image/jpeg`, `image/png`, `image/webp`, `image/bmp`, `image/gif`, `image/tiff`, `image/avif`
+
+### Validation (client-side, before upload)
+- File type must be in the accepted list — show error if not
+- File size must not exceed **20 MB** — show error if exceeded
+- If file is valid, immediately show the original image preview in a small thumbnail next to the zone with filename + dimensions + file size
+
+---
+
+## Section 3 — Processing State
+
+Replace the upload zone with a full processing view when an image is being processed:
+
+- Dual concentric spinning rings (CSS, no image assets): outer ring `border-top-color: #7c3aed`, inner ring `border-bottom-color: #06b6d4`, counter-rotating
+- Dynamic heading that updates per stage: `"Uploading…"` → `"AI Removing Background…"` → `"Finalising…"`
+- Three animated progress steps that light up sequentially: `📤 Uploading` → `🤖 ClipDrop AI` → `✅ Done`
+- A **live debug log panel** (small, monospaced, dark background) that appends each action in real time:
+  - File name, size, type
+  - Exact POST URL
+  - HTTP response status + content-type
+  - Bytes received
+  - Format detected
+  - Final success or error message
+- This panel is visible during processing and collapses on success
+
+---
+
+## Section 4 — Webhook Integration
+
+### Endpoint
+```
+POST https://staffcollegemultan.app.n8n.cloud/webhook-test/uploadimage
+```
+
+### Critical: Avoid FormData / postMessage Cloning Error
+**Do NOT use the `FormData` API.** In sandboxed environments (iframes, certain hosting contexts), `FormData` objects cannot be cloned through `postMessage`, causing a hard runtime error.
+
+Instead, **manually construct the `multipart/form-data` body as an `ArrayBuffer`**:
+
+```javascript
+async function buildMultipartBody(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.onload = (e) => {
+      const boundary = '----MAKSBoundary' + Math.random().toString(36).slice(2);
+      const filename = file.name || 'image.png';
+      const mimeType = file.type || 'image/png';
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`;
+      const footer = `\r\n--${boundary}--\r\n`;
+      const hBytes = new TextEncoder().encode(header);
+      const fBytes = new TextEncoder().encode(footer);
+      const fileBytes = new Uint8Array(e.target.result);
+      const body = new Uint8Array(hBytes.length + fileBytes.length + fBytes.length);
+      body.set(hBytes, 0);
+      body.set(fileBytes, hBytes.length);
+      body.set(fBytes, hBytes.length + fileBytes.length);
+      resolve({ body: body.buffer, contentType: `multipart/form-data; boundary=${boundary}` });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+```
+
+Then send:
+```javascript
+const { body, contentType } = await buildMultipartBody(file);
+const response = await fetch(WEBHOOK_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': contentType },
+  body,
+  signal: AbortSignal.timeout(90000) // 90-second timeout
+});
+```
+
+### Response Handling
+The n8n workflow responds via a "Respond to Webhook" node in **Binary** mode, returning the processed PNG directly. Handle all response formats gracefully:
+
+1. **Read the entire response as `ArrayBuffer`** (do not rely on content-type headers alone)
+2. **Inspect magic bytes** to detect format regardless of headers:
+   - PNG: `bytes[0] === 137 && bytes[1] === 80`
+   - JPEG: `bytes[0] === 255 && bytes[1] === 216`
+   - WEBP: `bytes[8] === 87 && bytes[9] === 69` (ascii "WE" at offset 8)
+3. If bytes are too small (< 50 bytes), throw: *"Response too small — set Respond to Webhook → Binary mode in n8n"*
+4. If none of the above match, attempt JSON parse and look for `url`, `image` (base64), or `data` fields
+5. Create a blob URL with `URL.createObjectURL(new Blob([buf], { type: detectedMime }))`
+
+### Error Handling
+- Network/fetch failure: friendly message + retry button
+- HTTP 4xx/5xx: show status code + truncated response body (200 chars)
+- Timeout (AbortError): *"Request timed out after 90 s — check if n8n workflow is active"*
+- All errors must show in a styled error card (red-tinted) with an option to try again — never expose raw stack traces to the user
+
+---
+
+## Section 5 — Result View
+
+When processing succeeds, transition smoothly (fade-in) to a result view:
+
+### Before / After Comparison
+- Two cards side by side (`display: grid; grid-template-columns: 1fr 1fr`, stacks on mobile)
+- **Left card:** "📷 Original" header + original image
+- **Right card:** "✨ Background Removed" header + result image on a **checkerboard transparency pattern** (CSS `repeating-conic-gradient` at 8 % opacity so transparency is visible)
+- Both images: `object-fit: contain`, max-height 360 px, rounded corners
+
+### Export / Download Panel
+A styled card below the images with four controls:
+
+#### 1. Format Selector
+Three toggle buttons: `PNG` (default, selected) · `JPG` · `WEBP`
+- PNG: lossless, preserves transparency
+- JPG: fills transparent areas with white before export
+- WEBP: modern, small, transparency-aware
+- Show/hide the Quality slider based on selection (hidden for PNG)
+
+#### 2. Orientation / Crop
+Four toggle buttons: `Original` (default) · `Landscape 16:9` · `Portrait 9:16` · `Square 1:1`
+- Use **centre-crop** (cover behaviour): calculate the largest sub-rectangle of the target ratio centred in the image, then scale to target dimensions
+- Update the size-info label live when orientation changes
+
+#### 3. Size Reduction
+- Range slider: 10 % – 100 %, default 100 %
+- Live label beneath it showing computed pixel dimensions, e.g.: `75% — 1200 × 800 px`
+- Dimensions recalculate when orientation changes
+
+#### 4. Quality (JPG / WEBP only)
+- Range slider: 10 % – 100 %, default 90 %
+- Hidden when PNG is selected
+
+### Download Button
+- Full-width, gradient, large: `⬇️ Download Image`
+- On click: use Canvas API to apply crop, resize, format conversion, quality setting
+- For JPG: `ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h)` before drawing (removes transparency)
+- Export via `canvas.toBlob()` → `URL.createObjectURL` → programmatic `<a>` click → `URL.revokeObjectURL` after 2 s
+- Filename: `maks_bgremoved_[timestamp].[ext]`
+
+### Secondary Action
+`↩ Remove another image` link — resets all state cleanly and scrolls back to upload
+
+---
+
+## Section 6 — Toast Notifications
+
+Implement a lightweight toast system (no library):
+- Position: bottom-right, 16 px margin
+- Variants: success (green-tinted), error (red-tinted), info (purple-tinted)
+- Auto-dismiss after 3 s with a fade-out animation
+- Use for: "📋 Image pasted!", "✅ Download started!", "❌ [short error]"
+
+---
+
+## Security Measures
+
+| Concern | Mitigation |
+|---|---|
+| Malicious file type | Validate both `file.type` MIME and magic bytes before sending |
+| Oversized uploads | Enforce 20 MB client-side hard limit |
+| XSS via filename | Never inject raw filename into innerHTML; use `textContent` or sanitise |
+| Webhook URL exposure | Acceptable for client-side tool; document that the URL should be a production webhook (not test) in prod |
+| Response injection | Never `eval()` or inject raw server response into DOM |
+| Blob URL leaks | Always call `URL.revokeObjectURL()` after use |
+| Timeout/DoS | 90-second `AbortController` timeout on all fetch calls |
+| Canvas tainting | Result image is a local blob URL — no cross-origin canvas issues |
+
+---
+
+## Responsive Design
+
+- Mobile-first CSS; breakpoints at 480 px, 768 px, 1024 px
+- Hero font scales with `clamp()`
+- Result grid stacks to single column below 620 px
+- Export panel controls stack vertically on small screens
+- Touch-friendly tap targets (min 44 × 44 px)
+
+---
+
+## Accessibility
+
+- All interactive elements reachable via keyboard
+- `aria-label` on icon-only buttons
+- Focus-visible outline on all focusable elements (`outline: 2px solid #7c3aed; outline-offset: 3px`)
+- Colour contrast ratio ≥ 4.5:1 for all text
+- `role="status"` live region for processing state updates (screen reader friendly)
+- Upload zone has `aria-label="Image upload zone — click, drag and drop, or paste an image"`
+
+---
+
+## Performance
+
+- No external dependencies or CDN scripts
+- CSS animations use `transform` and `opacity` only (GPU-composited, no layout thrashing)
+- Particle system capped at 25 elements, removed if `prefers-reduced-motion` is set
+- Images displayed via blob URLs (no data URI memory bloat for large files)
+- Canvas operations run synchronously only when user clicks download (not on every slider move)
+
+---
+
+## Colour Palette & Design Tokens
+
+```css
+:root {
+  --bg-base:        #06040f;
+  --bg-card:        rgba(255, 255, 255, 0.04);
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --purple-primary: #7c3aed;
+  --purple-light:   #a855f7;
+  --cyan-accent:    #06b6d4;
+  --green-accent:   #34d399;
+  --text-primary:   #f1f5f9;
+  --text-muted:     #94a3b8;
+  --error:          rgba(239, 68, 68, 0.15);
+  --error-border:   rgba(239, 68, 68, 0.35);
+  --success:        rgba(52, 211, 153, 0.15);
+}
+```
+
+---
+
+## Final Checklist Before Delivery
+
+- [ ] All three upload methods work: click (via label), drag & drop, clipboard paste
+- [ ] No `fileInput.click()` JS call anywhere in the codebase
+- [ ] No `FormData` API used — manual multipart body construction only
+- [ ] Magic-byte response detection implemented
+- [ ] All four export controls functional (format, orientation, size, quality)
+- [ ] Canvas correctly fills white for JPG exports
+- [ ] Blob URLs revoked after use
+- [ ] Error states handled with user-friendly messages
+- [ ] Responsive on 375 px mobile viewport
+- [ ] Animations respect `prefers-reduced-motion`
+- [ ] No console errors on page load or during normal use

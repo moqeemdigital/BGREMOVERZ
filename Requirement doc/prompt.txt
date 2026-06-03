@@ -1,0 +1,31 @@
+You are good at web app development and know guru of your field I want to build an web-app that allow user to upload, drag and drop of copy paste and image of present prevalent format  and it pass that image to Webhook URL that trigger n8nn workflow where Clipdrop will remove its background by invoking HTTP request and returned the result by respond webhook. Hero section will describe the MAKS BG Remover with some proper subtitle and it alow user to download the image in different size and types,  Provide a well crafted prompt that deliver fantastic web app with all modern approaches and security measures. integrate this [url https://staffcollegemultan.app.n8n.cloud/webhook-test/uploadimage](https://staffcollegemultan.app.n8n.cloud/webhook/uploadimage)
+
+
+
+
+
+
+------------------------
+Here's a meticulously crafted prompt you can drop into any AI coding tool (Lovable, Cursor, v0, Bolt, etc.):
+
+---This prompt is engineered to get you a production-ready app on the first try. Here's what makes it different from a typical prompt:
+
+**Why it works so well:**
+
+The prompt encodes all the hard-won lessons from our debugging session directly into the instructions, so the AI builder won't make the same mistakes:
+
+1. **`FormData` ban** — explicitly forbids it and provides the exact `buildMultipartBody()` function to use instead, so you'll never hit that `postMessage` cloning error again
+
+2. **Label-based file input** — bans `fileInput.click()` in JS and mandates the `<label for="fileInput">` pattern, which works in every sandboxed environment
+
+3. **Magic-byte detection** — instructs the builder to inspect actual binary bytes (not just content-type headers) so the response image always renders correctly regardless of what n8n sends back
+
+4. **Security table** — 8 explicit mitigations covering file validation, XSS, blob leaks, and timeouts
+
+5. **Three upload methods** — click, drag & drop, and clipboard paste (`Ctrl+V`) all specified with exact implementation details
+
+**Where to use it:**
+- **Lovable** — paste as your initial prompt, it'll scaffold the full app
+- **Cursor / Windsurf** — use as a `SPEC.md` file in your project root
+- **v0 by Vercel** — paste directly, it handles React output well
+- **Bolt.new** — works great for single-file HTML output
