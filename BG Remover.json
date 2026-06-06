@@ -1,0 +1,150 @@
+{
+  "name": "BG Remover",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://clipdrop-api.co/remove-background/v1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "0fa752ef97f7d5df2ce3ecfeff6435540d50e2d4f0a74ac14ff1513da2c2a32204543f6883efa5d91330f4ce07c7a4e7"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "=image_file",
+              "inputDataFieldName": "image"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "result.png"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -592,
+        -416
+      ],
+      "id": "57a96a9b-04fa-45b1-ab08-095a1a8d5adb",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "uploadimage",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -960,
+        -416
+      ],
+      "id": "71fbdc56-048e-4678-b603-bc4faff8e873",
+      "name": "Webhook",
+      "webhookId": "d7416f5f-612b-4722-9872-2ca22373621e"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "result.png",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -256,
+        -416
+      ],
+      "id": "e98a36ea-cdea-4214-9de7-3412aacf3aab",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "49ef8609-a50c-410d-a66c-9fffb96710e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e83149216290f5de044cf172b3cf63b555813c1d7f92cb02791bd640b2df5554"
+  },
+  "id": "XjdO3FUlkrYsNHOz",
+  "tags": []
+}
